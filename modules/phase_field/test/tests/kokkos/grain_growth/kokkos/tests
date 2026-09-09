@@ -1,0 +1,49 @@
+[Tests]
+  issues = '#30655'
+  design = 'KokkosKernels/index.md'
+
+  # Gate 2 (DESIGN section 6): hand-coded Jacobian vs PETSc finite differences, full coupling
+  [test_jac]
+    type = PetscJacobianTester
+    input = test_fixed.i
+    ratio_tol = 5e-8
+    difference_tol = 5e-5
+    run_sim = True
+    max_parallel = 1
+    cli_args = 'Outputs/csv=false Outputs/exodus=false Executioner/num_steps=1'
+    capabilities = 'kokkos'
+    compute_devices = 'cpu cuda'
+    requirement = 'The hand-coded Kokkos grain-growth Jacobian shall pass finite-difference comparison on the circular-grain deck.'
+  []
+
+  # Gate 3: the Kokkos result matches its explicit CPU control (run ../cpu_control first)
+  [test_match]
+    type = Exodiff
+    input = test_fixed.i
+    exodiff = test_fixed_out.e
+    gold_dir = ../cpu_control
+    abs_zero = 1e-10
+    rel_err = 5.5e-6
+    max_parallel = 1
+    cli_args = 'Outputs/file_base=test_fixed_out'
+    capabilities = 'kokkos'
+    compute_devices = 'cpu cuda'
+    requirement = 'The explicit Kokkos grain-growth result shall match its CPU control: circular grain.'
+  []
+
+  # Gate 4: first light, 100 grains / 8 order parameters, GrainTracker on the host, four ranks
+  [graintracker_match]
+    type = Exodiff
+    input = grain_growth_2D_graintracker_fixed.i
+    exodiff = grain_growth_2D_graintracker_fixed_out.e
+    gold_dir = ../cpu_control
+    abs_zero = 1e-10
+    rel_err = 5.5e-6
+    min_parallel = 4
+    max_parallel = 4
+    cli_args = 'Outputs/file_base=grain_growth_2D_graintracker_fixed_out Executioner/end_time=400'
+    capabilities = 'kokkos'
+    compute_devices = 'cpu cuda'
+    requirement = 'The explicit Kokkos grain-growth result shall match its CPU control: GrainTracker first light.'
+  []
+[]

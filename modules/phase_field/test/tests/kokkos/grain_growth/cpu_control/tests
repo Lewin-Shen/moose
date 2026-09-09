@@ -1,0 +1,25 @@
+[Tests]
+  issues = '#30655'
+  design = 'KokkosKernels/index.md'
+
+  # Explicit CPU controls: produce the reference outputs the ../kokkos spec compares against.
+  # The circular-grain output can additionally be compared offline with the P2 gold
+  # (_scratch/gates/test/gold/test_fixed_out.e; hypre -> gamg is the only solver difference).
+  [test_run]
+    type = RunApp
+    input = test_fixed.i
+    max_parallel = 1
+    cli_args = 'Outputs/file_base=test_fixed_out'
+    compute_devices = 'cpu cuda'
+    requirement = 'The explicit CPU control of the circular-grain deck shall run.'
+  []
+  [graintracker_run]
+    type = RunApp
+    input = grain_growth_2D_graintracker_fixed.i
+    min_parallel = 4
+    max_parallel = 4
+    cli_args = 'Outputs/file_base=grain_growth_2D_graintracker_fixed_out Executioner/end_time=400'
+    compute_devices = 'cpu cuda'
+    requirement = 'The explicit CPU control of the GrainTracker first-light deck shall run.'
+  []
+[]
