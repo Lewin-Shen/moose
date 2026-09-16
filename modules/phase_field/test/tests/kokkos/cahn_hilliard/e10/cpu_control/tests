@@ -1,0 +1,59 @@
+[Tests]
+  issues = '#30655'
+  design = 'KokkosKernels/index.md'
+
+  # Port 02 tier 5 (E10) CPU controls, kept as a CPU regression (journal I-12): each CPU deck is compared
+  # against the committed gold it generated, ../kokkos/gold/<name>.e (one rank, this binary, the same
+  # Outputs/file_base), and passes its own Jacobian test. To regenerate a gold: run the CPU deck here with
+  # Outputs/file_base=<name> and copy <name>.e to ../kokkos/gold/.
+
+  [oldforce_run]
+    type = Exodiff
+    input = oldforce_cpu.i
+    exodiff = oldforce_out.e
+    gold_dir = ../kokkos/gold
+    abs_zero = 1e-10
+    rel_err = 5.5e-6
+    max_parallel = 1
+    cli_args = 'Outputs/file_base=oldforce_out'
+    compute_devices = 'cpu cuda'
+    requirement = 'The CPU control of the old-state coupled force toy deck shall reproduce its committed gold.'
+  []
+  # CoupledForce with implicit = false is skipped by the CPU Jacobian loops (ComputeFullJacobianThread.C),
+  # so its zero Jacobian is consistent with finite differences.
+  [oldforce_jac]
+    type = PetscJacobianTester
+    input = oldforce_cpu.i
+    ratio_tol = 5e-8
+    difference_tol = 5e-5
+    run_sim = True
+    max_parallel = 1
+    cli_args = 'Outputs/csv=false Outputs/exodus=false Executioner/num_steps=1'
+    compute_devices = 'cpu cuda'
+    requirement = 'The CPU control of the old-state coupled force toy deck shall pass the Jacobian test.'
+  []
+
+  [ch_e10_run]
+    type = Exodiff
+    input = ch_e10_cpu.i
+    exodiff = ch_e10_out.e
+    gold_dir = ../kokkos/gold
+    abs_zero = 1e-10
+    rel_err = 5.5e-6
+    max_parallel = 1
+    cli_args = 'Outputs/file_base=ch_e10_out'
+    compute_devices = 'cpu cuda'
+    requirement = 'The CPU control of the E10 gate deck shall reproduce its committed gold.'
+  []
+  [ch_e10_jac]
+    type = PetscJacobianTester
+    input = ch_e10_cpu.i
+    ratio_tol = 5e-8
+    difference_tol = 5e-5
+    run_sim = True
+    max_parallel = 1
+    cli_args = 'Outputs/csv=false Outputs/exodus=false Executioner/num_steps=1'
+    compute_devices = 'cpu cuda'
+    requirement = 'The CPU control of the E10 gate deck shall pass the Jacobian test with the multiplicative FieldSplit.'
+  []
+[]

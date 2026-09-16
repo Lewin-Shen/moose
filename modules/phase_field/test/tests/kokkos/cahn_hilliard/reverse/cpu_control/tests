@@ -1,0 +1,39 @@
+[Tests]
+  issues = '#30655'
+  design = 'KokkosKernels/index.md'
+
+  # Explicit CPU controls of the port 02 tier 1 decks: produce the reference outputs (Exodus with the
+  # postprocessors as globals, and CSV) from which the ../kokkos/gold files are copied.
+  [rev_run]
+    type = RunApp
+    input = ch_rev_cpu.i
+    max_parallel = 1
+    cli_args = 'Outputs/file_base=ch_rev_out'
+    compute_devices = 'cpu cuda'
+    requirement = 'The explicit CPU control of the reverse-split Cahn-Hilliard gate deck shall run.'
+  []
+  [rev_rk_run]
+    type = RunApp
+    input = ch_rev_rk_cpu.i
+    max_parallel = 1
+    cli_args = 'Outputs/file_base=ch_rev_rk_out'
+    compute_devices = 'cpu cuda'
+    requirement = 'The explicit CPU control of the reverse-split gate deck with the Redlich-Kister free energy shall run.'
+  []
+  [rev_coupled_run]
+    type = RunApp
+    input = ch_rev_coupled_cpu.i
+    max_parallel = 1
+    cli_args = 'Outputs/file_base=ch_rev_coupled_out'
+    compute_devices = 'cpu cuda'
+    requirement = 'The explicit CPU control of the coupled-argument reverse-split gate deck shall run.'
+  []
+  [rev_onsager_run]
+    type = RunApp
+    input = ch_rev_onsager_cpu.i
+    max_parallel = 1
+    cli_args = 'Outputs/file_base=ch_rev_onsager_out'
+    compute_devices = 'cpu cuda'
+    requirement = 'The explicit CPU control of the two-concentration reverse-split deck with off-diagonal mobilities shall run.'
+  []
+[]

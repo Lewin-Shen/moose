@@ -1,0 +1,109 @@
+[Tests]
+  issues = '#30655'
+  design = 'KokkosKernels/index.md'
+
+  # Explicit CPU controls: the decks that generated the committed gold of ../kokkos/gold (same binary, CPU objects),
+  # kept as a CPU regression against that gold.
+  [run_calphad]
+    type = Exodiff
+    exodiff = ch_fwd_out.e
+    gold_dir = ../kokkos/gold
+    abs_zero = 1e-10
+    rel_err = 5.5e-6
+    input = ch_fwd_cpu.i
+    allow_test_objects = true
+    max_parallel = 1
+    cli_args = 'Outputs/file_base=ch_fwd_out'
+    compute_devices = 'cpu cuda'
+    requirement = 'The explicit CPU control of the forward-split Cahn-Hilliard deck (REDLICH_KISTER) shall reproduce the committed gold on one rank.'
+  []
+  [run_calphad_np4]
+    type = Exodiff
+    exodiff = ch_fwd_np4_out.e
+    gold_dir = ../kokkos/gold
+    abs_zero = 1e-10
+    rel_err = 5.5e-6
+    input = ch_fwd_cpu.i
+    allow_test_objects = true
+    min_parallel = 4
+    max_parallel = 4
+    cli_args = 'Outputs/file_base=ch_fwd_np4_out'
+    compute_devices = 'cpu cuda'
+    requirement = 'The explicit CPU control of the forward-split Cahn-Hilliard deck (REDLICH_KISTER) shall reproduce the committed gold on four ranks.'
+  []
+  [run_poly]
+    type = Exodiff
+    exodiff = ch_fwd_poly_out.e
+    gold_dir = ../kokkos/gold
+    abs_zero = 1e-10
+    rel_err = 5.5e-6
+    input = ch_fwd_cpu_poly.i
+    allow_test_objects = true
+    max_parallel = 1
+    cli_args = 'Outputs/file_base=ch_fwd_poly_out'
+    compute_devices = 'cpu cuda'
+    requirement = 'The explicit CPU control of the forward-split Cahn-Hilliard deck (DOUBLE_WELL) shall reproduce the committed gold on one rank.'
+  []
+  [run_poly_np4]
+    type = Exodiff
+    exodiff = ch_fwd_poly_np4_out.e
+    gold_dir = ../kokkos/gold
+    abs_zero = 1e-10
+    rel_err = 5.5e-6
+    input = ch_fwd_cpu_poly.i
+    allow_test_objects = true
+    min_parallel = 4
+    max_parallel = 4
+    cli_args = 'Outputs/file_base=ch_fwd_poly_np4_out'
+    compute_devices = 'cpu cuda'
+    requirement = 'The explicit CPU control of the forward-split Cahn-Hilliard deck (DOUBLE_WELL) shall reproduce the committed gold on four ranks.'
+  []
+  [run_degenerate]
+    type = Exodiff
+    exodiff = ch_fwd_degenerate_out.e
+    gold_dir = ../kokkos/gold
+    abs_zero = 1e-10
+    rel_err = 5.5e-6
+    input = ch_fwd_cpu_degenerate.i
+    max_parallel = 1
+    cli_args = 'Outputs/file_base=ch_fwd_degenerate_out'
+    compute_devices = 'cpu cuda'
+    requirement = 'The explicit CPU control of the degenerate-mobility deck shall reproduce the committed gold.'
+  []
+  [run_coupled]
+    type = Exodiff
+    exodiff = ch_fwd_coupled_out.e
+    gold_dir = ../kokkos/gold
+    abs_zero = 1e-10
+    rel_err = 5.5e-6
+    input = ch_fwd_cpu_coupled.i
+    max_parallel = 1
+    cli_args = 'Outputs/file_base=ch_fwd_coupled_out'
+    compute_devices = 'cpu cuda'
+    requirement = 'The explicit CPU control of the coupled-argument test deck shall reproduce the committed gold.'
+  []
+
+  # The same finite-difference Jacobian check on the CPU objects: evidence that the tolerances of the
+  # ../kokkos gates are attainable on this problem, independent of the Kokkos objects.
+  [jac_calphad_cpu]
+    type = PetscJacobianTester
+    input = ch_fwd_cpu.i
+    allow_test_objects = true
+    ratio_tol = 5e-8
+    difference_tol = 5e-5
+    run_sim = True
+    max_parallel = 1
+    cli_args = 'Outputs/csv=false Outputs/exodus=false Executioner/num_steps=1'
+    requirement = 'The CPU forward-split Cahn-Hilliard Jacobian (REDLICH_KISTER) shall pass finite-difference comparison at the gate tolerances.'
+  []
+  [jac_coupled_cpu]
+    type = PetscJacobianTester
+    input = ch_fwd_cpu_coupled.i
+    ratio_tol = 5e-8
+    difference_tol = 5e-5
+    run_sim = True
+    max_parallel = 1
+    cli_args = 'Outputs/csv=false Outputs/exodus=false Executioner/num_steps=1'
+    requirement = 'The CPU coupled-argument test Jacobian shall pass finite-difference comparison at the gate tolerances.'
+  []
+[]
