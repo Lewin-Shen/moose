@@ -1,0 +1,186 @@
+[Tests]
+  issues = '#30655'
+  design = 'KokkosKernels/index.md'
+
+  # Port 02, tier 1 (reverse split): KokkosSplitCHWRes and KokkosSplitCHParsed with the framework's
+  # KokkosCoupledTimeDerivative. The free energy is KokkosCHFreeEnergy (tier 2) in both forms and the mobility
+  # KokkosCHMobility (tier 2); the coupled-argument deck uses tier 2's test-only two-argument energy
+  # KokkosCHFreeEnergyCoupledTest (decision I-10; allow_test_objects).
+
+  # G1: hand-coded Jacobians against PETSc finite differences, full coupling (SMP full = true), one step.
+  # The base deck keeps the tutorial's physical scaling (M = 2.2e-5, kappa = 0.44 eV/nm), on which the
+  # finite-difference floor is truncation-dominated and proportional to the difference step: 5.5e-8 at
+  # PETSc's default step (1.49e-8 relative, the same value for the host SplitCHWRes/SplitCHParsed on this
+  # deck), 2.0e-8 at 5e-9, 1.4e-8 to 1.7e-8 at 2e-9 (measured 2026-09-15, port 02 tier 1 record). The step is
+  # therefore set to 5e-9 here so that the 5e-8 tolerance sits 2.5x above the floor; the coupled deck below
+  # has O(1) blocks on both rows and stays at the default step (floor 1.9e-8 to 2.1e-8); the Redlich-Kister deck
+  # is treated below.
+  [rev_jac]
+    type = PetscJacobianTester
+    input = ch_rev_kokkos.i
+    ratio_tol = 5e-8
+    difference_tol = 5e-5
+    run_sim = True
+    max_parallel = 1
+    cli_args = 'Outputs/csv=false Outputs/exodus=false Executioner/num_steps=1 -snes_test_err 5e-9'
+    capabilities = 'kokkos'
+    compute_devices = 'cpu cuda'
+    requirement = 'The hand-coded Jacobians of the Kokkos reverse-split Cahn-Hilliard kernels shall pass finite-difference comparison on the base deck.'
+  []
+  # Redlich-Kister: the floor of this deck is 3.6e-8 (host kernels on the same deck: 3.0e-8) at a 2e-9 step and
+  # 1.25e-7 at PETSc's default step, so the ratio tolerance is 1e-7 here (the framework's own Kokkos Jacobian spec
+  # value, test/tests/kokkos/kernels/coupled_time_derivative/tests), 2.8x above the floor; 5e-8 would pass with a
+  # 1.4x margin (port 02 tier 1 RECORD.md, finding F2). The chemical potential starts at f'(0.5) in this deck so
+  # that the tester's step on its columns is not the 0.1 x step PETSc uses for a zero entry.
+  [rev_rk_jac]
+    type = PetscJacobianTester
+    input = ch_rev_rk_kokkos.i
+    ratio_tol = 1e-7
+    difference_tol = 5e-5
+    run_sim = True
+    max_parallel = 1
+    cli_args = 'Outputs/csv=false Outputs/exodus=false Executioner/num_steps=1 -snes_test_err 2e-9'
+    capabilities = 'kokkos'
+    compute_devices = 'cpu cuda'
+    requirement = 'The hand-coded Jacobians of the Kokkos reverse-split Cahn-Hilliard kernels shall pass finite-difference comparison with the Redlich-Kister (CALPHAD) free energy.'
+  []
+  [rev_coupled_jac]
+    type = PetscJacobianTester
+    input = ch_rev_coupled_kokkos.i
+    ratio_tol = 5e-8
+    difference_tol = 5e-5
+    run_sim = True
+    max_parallel = 1
+    allow_test_objects = true
+    cli_args = 'Outputs/csv=false Outputs/exodus=false Executioner/num_steps=1'
+    capabilities = 'kokkos'
+    compute_devices = 'cpu cuda'
+    requirement = 'The coupled-argument off-diagonal Jacobians (d2F/dc deta on the concentration row, dM/dc on the chemical potential row) of the Kokkos reverse-split kernels shall pass finite-difference comparison.'
+  []
+
+  # G2: the Kokkos result matches its explicit CPU control, 1 rank and 4 ranks. The golds under gold/ are the
+  # ../cpu_control outputs of the same binary (regenerate: run the ../cpu_control spec, then copy
+  # ../cpu_control/<name>_out.e to gold/; port 02 tier 1 RECORD.md section 6)
+  [rev_match]
+    type = Exodiff
+    input = ch_rev_kokkos.i
+    exodiff = ch_rev_out.e
+    abs_zero = 1e-10
+    rel_err = 5.5e-6
+    max_parallel = 1
+    cli_args = 'Outputs/file_base=ch_rev_out'
+    capabilities = 'kokkos'
+    compute_devices = 'cpu cuda'
+    requirement = 'The Kokkos reverse-split Cahn-Hilliard result shall match its CPU control on one rank.'
+  []
+  [rev_match_np4]
+    type = Exodiff
+    input = ch_rev_kokkos.i
+    exodiff = ch_rev_out.e
+    abs_zero = 1e-10
+    rel_err = 5.5e-6
+    min_parallel = 4
+    max_parallel = 4
+    prereq = rev_match
+    cli_args = 'Outputs/file_base=ch_rev_out'
+    capabilities = 'kokkos'
+    compute_devices = 'cpu cuda'
+    requirement = 'The Kokkos reverse-split Cahn-Hilliard result shall match its CPU control on four ranks.'
+  []
+  [rev_rk_match]
+    type = Exodiff
+    input = ch_rev_rk_kokkos.i
+    exodiff = ch_rev_rk_out.e
+    abs_zero = 1e-10
+    rel_err = 5.5e-6
+    max_parallel = 1
+    cli_args = 'Outputs/file_base=ch_rev_rk_out'
+    capabilities = 'kokkos'
+    compute_devices = 'cpu cuda'
+    requirement = 'The Kokkos reverse-split Cahn-Hilliard result with the Redlich-Kister free energy shall match its CPU control on one rank.'
+  []
+  [rev_rk_match_np4]
+    type = Exodiff
+    input = ch_rev_rk_kokkos.i
+    exodiff = ch_rev_rk_out.e
+    abs_zero = 1e-10
+    rel_err = 5.5e-6
+    min_parallel = 4
+    max_parallel = 4
+    prereq = rev_rk_match
+    cli_args = 'Outputs/file_base=ch_rev_rk_out'
+    capabilities = 'kokkos'
+    compute_devices = 'cpu cuda'
+    requirement = 'The Kokkos reverse-split Cahn-Hilliard result with the Redlich-Kister free energy shall match its CPU control on four ranks.'
+  []
+  [rev_coupled_match]
+    type = Exodiff
+    input = ch_rev_coupled_kokkos.i
+    exodiff = ch_rev_coupled_out.e
+    abs_zero = 1e-10
+    rel_err = 5.5e-6
+    max_parallel = 1
+    allow_test_objects = true
+    cli_args = 'Outputs/file_base=ch_rev_coupled_out'
+    capabilities = 'kokkos'
+    compute_devices = 'cpu cuda'
+    requirement = 'The Kokkos coupled-argument reverse-split result shall match its CPU control on one rank.'
+  []
+  [rev_coupled_match_np4]
+    type = Exodiff
+    input = ch_rev_coupled_kokkos.i
+    exodiff = ch_rev_coupled_out.e
+    abs_zero = 1e-10
+    rel_err = 5.5e-6
+    min_parallel = 4
+    max_parallel = 4
+    prereq = rev_coupled_match
+    allow_test_objects = true
+    cli_args = 'Outputs/file_base=ch_rev_coupled_out'
+    capabilities = 'kokkos'
+    compute_devices = 'cpu cuda'
+    requirement = 'The Kokkos coupled-argument reverse-split result shall match its CPU control on four ranks.'
+  []
+
+  # Coupled-w branch of KokkosSplitCHWRes (w12: variable = w1, w = w2; w21: variable = w2, w = w1), the module's
+  # phase_field_kernels/SplitCHWRes.i with the separable energy as two DOUBLE_WELL instances (tier 1 cross-review L7);
+  # tester floor 8.5e-9 at the default step on both backends (blocks O(10) to O(100), kappa_c = 40)
+  [rev_onsager_jac]
+    type = PetscJacobianTester
+    input = ch_rev_onsager_kokkos.i
+    ratio_tol = 5e-8
+    difference_tol = 5e-5
+    run_sim = True
+    max_parallel = 1
+    cli_args = 'Outputs/exodus=false Executioner/num_steps=1'
+    capabilities = 'kokkos'
+    compute_devices = 'cpu cuda'
+    requirement = 'The coupled chemical-potential branch of the Kokkos SplitCHWRes kernel (an off-diagonal Onsager mobility) shall pass finite-difference comparison.'
+  []
+  [rev_onsager_match]
+    type = Exodiff
+    input = ch_rev_onsager_kokkos.i
+    exodiff = ch_rev_onsager_out.e
+    abs_zero = 1e-10
+    rel_err = 5.5e-6
+    max_parallel = 1
+    cli_args = 'Outputs/file_base=ch_rev_onsager_out'
+    capabilities = 'kokkos'
+    compute_devices = 'cpu cuda'
+    requirement = 'The Kokkos two-concentration reverse-split result with off-diagonal mobilities shall match its CPU control on one rank.'
+  []
+  [rev_onsager_match_np4]
+    type = Exodiff
+    input = ch_rev_onsager_kokkos.i
+    exodiff = ch_rev_onsager_out.e
+    abs_zero = 1e-10
+    rel_err = 5.5e-6
+    min_parallel = 4
+    max_parallel = 4
+    prereq = rev_onsager_match
+    cli_args = 'Outputs/file_base=ch_rev_onsager_out'
+    capabilities = 'kokkos'
+    compute_devices = 'cpu cuda'
+    requirement = 'The Kokkos two-concentration reverse-split result with off-diagonal mobilities shall match its CPU control on four ranks.'
+  []
+[]

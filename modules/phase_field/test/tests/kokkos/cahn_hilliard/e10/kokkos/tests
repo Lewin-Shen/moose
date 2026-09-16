@@ -1,0 +1,120 @@
+[Tests]
+  issues = '#30655'
+  design = 'KokkosKernels/index.md'
+
+  # Port 02 tier 5 (E10). Gates per port/DESIGN-kokkos-ch-kks.md section 9 and the implementation journal
+  # section 4: G1 PetscJacobianTester (run_sim, NEWTON, full coupling), G2 Exodiff against the committed
+  # gold/ files (journal I-12), which are the CPU controls' own outputs: gold/oldforce_out.e and
+  # gold/ch_e10_out.e were generated on one rank by ../cpu_control/oldforce_cpu.i and ../cpu_control/ch_e10_cpu.i
+  # (Outputs/file_base=<name>) with the same binary; the ../cpu_control spec compares the CPU decks against
+  # the same files as a CPU regression. Regenerate the golds with the CPU decks whenever either deck changes.
+
+  # G1 on the toy deck: KokkosOldCoupledForce carries no Jacobian (its residual depends on the old
+  # solution only), so the test is trivial for that kernel and must still pass for the deck.
+  [oldforce_jac]
+    type = PetscJacobianTester
+    input = oldforce_kokkos.i
+    ratio_tol = 5e-8
+    difference_tol = 5e-5
+    run_sim = True
+    max_parallel = 1
+    cli_args = 'Outputs/csv=false Outputs/exodus=false Executioner/num_steps=1'
+    capabilities = 'kokkos'
+    compute_devices = 'cpu cuda'
+    requirement = 'The Kokkos old-state coupled force shall leave the Jacobian of the toy deck consistent with finite differences.'
+  []
+
+  # G2: the old-state source term matches CoupledForce with implicit = false (gold/oldforce_out.e), 1 and 4 ranks
+  [oldforce_match]
+    type = Exodiff
+    input = oldforce_kokkos.i
+    exodiff = oldforce_out.e
+    abs_zero = 1e-10
+    rel_err = 5.5e-6
+    max_parallel = 1
+    cli_args = 'Outputs/file_base=oldforce_out'
+    capabilities = 'kokkos'
+    compute_devices = 'cpu cuda'
+    requirement = 'The Kokkos old-state coupled force shall reproduce its CPU control on one rank.'
+  []
+  [oldforce_match_4ranks]
+    type = Exodiff
+    input = oldforce_kokkos.i
+    exodiff = oldforce_out.e
+    abs_zero = 1e-10
+    rel_err = 5.5e-6
+    min_parallel = 4
+    max_parallel = 4
+    cli_args = 'Outputs/file_base=oldforce_out'
+    capabilities = 'kokkos'
+    compute_devices = 'cpu cuda'
+    prereq = oldforce_match
+    requirement = 'The Kokkos old-state coupled force shall reproduce its CPU control on four ranks.'
+  []
+
+  # Dispatch gate for the KokkosMatCoupledForce configuration rule (Codex H04): without
+  # material_properties the kernel's property array is never created and the dispatcher's deep copy
+  # aborts; with a constant property of value 1 the same deck runs and passes the Jacobian gate.
+  [matcoupledforce_dispatch_fail]
+    type = RunException
+    input = matcoupledforce_dispatch.i
+    expect_err = 'Kokkos array error: cannot deep copy using constructor from array without host data'
+    max_parallel = 1
+    capabilities = 'kokkos'
+    compute_devices = 'cpu cuda'
+    requirement = 'KokkosMatCoupledForce without material_properties shall fail at dispatch with the deep-copy error.'
+  []
+  [matcoupledforce_jac]
+    type = PetscJacobianTester
+    input = matcoupledforce_dispatch.i
+    ratio_tol = 5e-8
+    difference_tol = 5e-5
+    run_sim = True
+    max_parallel = 1
+    cli_args = 'Kernels/u_v/material_properties=one Kernels/v_u/material_properties=one Outputs/exodus=false Executioner/num_steps=1'
+    capabilities = 'kokkos'
+    compute_devices = 'cpu cuda'
+    requirement = 'KokkosMatCoupledForce with a constant property of value 1 shall run and pass the Jacobian test on both couplings.'
+  []
+
+  # E10: the (g, u, c) implicit form. UNTESTED UNTIL INTEGRATION: the deck needs tier 2's KokkosMatDiffusion,
+  # KokkosCoupledMaterialDerivative and KokkosCHFreeEnergy, which are built in another worktree.
+  [ch_e10_jac]
+    type = PetscJacobianTester
+    input = ch_e10_kokkos.i
+    ratio_tol = 5e-8
+    difference_tol = 5e-5
+    run_sim = True
+    max_parallel = 1
+    cli_args = 'Outputs/csv=false Outputs/exodus=false Executioner/num_steps=1'
+    capabilities = 'kokkos'
+    compute_devices = 'cpu cuda'
+    requirement = 'The Kokkos E10 deck shall pass the finite-difference Jacobian test with the multiplicative FieldSplit.'
+  []
+  [ch_e10_match]
+    type = Exodiff
+    input = ch_e10_kokkos.i
+    exodiff = ch_e10_out.e
+    abs_zero = 1e-10
+    rel_err = 5.5e-6
+    max_parallel = 1
+    cli_args = 'Outputs/file_base=ch_e10_out'
+    capabilities = 'kokkos'
+    compute_devices = 'cpu cuda'
+    requirement = 'The Kokkos E10 deck shall reproduce its CPU control on one rank.'
+  []
+  [ch_e10_match_4ranks]
+    type = Exodiff
+    input = ch_e10_kokkos.i
+    exodiff = ch_e10_out.e
+    abs_zero = 1e-10
+    rel_err = 5.5e-6
+    min_parallel = 4
+    max_parallel = 4
+    cli_args = 'Outputs/file_base=ch_e10_out'
+    capabilities = 'kokkos'
+    compute_devices = 'cpu cuda'
+    prereq = ch_e10_match
+    requirement = 'The Kokkos E10 deck shall reproduce its CPU control on four ranks.'
+  []
+[]
