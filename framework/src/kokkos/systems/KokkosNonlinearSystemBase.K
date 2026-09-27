@@ -17,6 +17,27 @@
 #include "MooseVariableFieldBase.h"
 #include "FEProblemBase.h"
 
+template <typename... Warehouses>
+std::set<TagID>
+NonlinearSystemBase::writtenResidualTags(const std::set<TagID> & tags,
+                                         const Warehouses &... warehouses)
+{
+  std::set<TagID> written;
+  const auto add_written_tags = [&](const auto & warehouse)
+  {
+    for (const auto & object : warehouse.getActiveObjects())
+    {
+      // The object's vector tags as they are now, the set its dispatch copy reads
+      const auto & object_tags = object->getVectorTags({});
+      for (const auto tag : tags)
+        if (object_tags.count(tag))
+          written.insert(tag);
+    }
+  };
+  (add_written_tags(warehouses), ...);
+  return written;
+}
+
 void
 NonlinearSystemBase::addKokkosKernel(const std::string & kernel_name,
                                      const std::string & name,
@@ -141,7 +162,11 @@ NonlinearSystemBase::computeKokkosResidual(const std::set<TagID> & tags)
 
   auto & systems = _fe_problem.getKokkosFESystems();
 
-  systems[number()].setActiveResidualTags(tags);
+  const auto written = writtenResidualTags(tags, kernels, nodal_kernels, integrated_bcs);
+  mooseAssert(_communicator.verify(written.size()) &&
+                  _communicator.verify(std::vector<TagID>(written.begin(), written.end())),
+              "The residual tags of a Kokkos pass differ between processes");
+  systems[number()].setActiveResidualTags(written);
 
   std::set<MooseVariableFieldBase *> needed_moose_vars;
   std::set<TagID> needed_fe_var_vector_tags;
@@ -251,7 +276,11 @@ NonlinearSystemBase::computeKokkosNodalBCsResidual(const std::set<TagID> & tags)
 
   auto & systems = _fe_problem.getKokkosFESystems();
 
-  systems[number()].setActiveResidualTags(tags);
+  const auto written = writtenResidualTags(tags, nodal_bcs);
+  mooseAssert(_communicator.verify(written.size()) &&
+                  _communicator.verify(std::vector<TagID>(written.begin(), written.end())),
+              "The residual tags of a Kokkos pass differ between processes");
+  systems[number()].setActiveResidualTags(written);
 
   std::set<TagID> needed_fe_var_vector_tags;
 
@@ -433,7 +462,13 @@ NonlinearSystemBase::computeKokkosResidualAndJacobian(const std::set<TagID> & ve
 
   auto & systems = _fe_problem.getKokkosFESystems();
 
-  systems[number()].setActiveResidualTags(vector_tags);
+  // Nodal BC residuals are computed in their own pass
+  const auto written = writtenResidualTags(
+      vector_tags, _kokkos_kernels, _kokkos_nodal_kernels, _kokkos_integrated_bcs);
+  mooseAssert(_communicator.verify(written.size()) &&
+                  _communicator.verify(std::vector<TagID>(written.begin(), written.end())),
+              "The residual tags of a Kokkos pass differ between processes");
+  systems[number()].setActiveResidualTags(written);
   systems[number()].setActiveMatrixTags(matrix_tags);
 
   std::set<MooseVariableFieldBase *> needed_moose_vars;

@@ -1111,6 +1111,19 @@ private:
    */
   void setupScalingData();
 
+#ifdef MOOSE_KOKKOS_ENABLED
+  /**
+   * The residual tags of \p tags that at least one active object of the given warehouses writes.
+   * Activating only these tags keeps the Kokkos close from adding zero ghost contributions to tag
+   * vectors no Kokkos object of the pass contributes to (for example the RESIDUAL tag in the
+   * element passes: by default only nodal BCs write it, in their own pass). The set is the same on
+   * every process: every object exists everywhere.
+   */
+  template <typename... Warehouses>
+  static std::set<TagID> writtenResidualTags(const std::set<TagID> & tags,
+                                             const Warehouses &... warehouses);
+#endif
+
   /// Functors for computing undisplaced mortar constraints
   std::unordered_map<std::pair<BoundaryID, BoundaryID>, ComputeMortarFunctor>
       _undisplaced_mortar_functors;

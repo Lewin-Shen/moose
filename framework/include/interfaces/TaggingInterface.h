@@ -78,6 +78,7 @@ public:
   {
     friend class AttribVectorTags;
     friend class NonlinearEigenSystem;
+    friend class NonlinearSystemBase;
     friend class LinearSystemContributionObject;
     template <typename>
     friend class MooseObjectTagWarehouse;
