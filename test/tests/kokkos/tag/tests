@@ -69,4 +69,54 @@
       compute_devices = 'cpu cuda xpu'
     []
   []
+
+  [written_residual_tags]
+    issues = '#<moose-issue>'
+    design = 'NonlinearSystem.md'
+    requirement = 'The system shall compute the correct solution when a Kokkos residual pass assembles only the '
+                  'residual tags its objects write, with'
+    [default_tags]
+      type = CSVDiff
+      input = kokkos_written_residual_tags.i
+      csvdiff = kokkos_written_residual_tags_out.csv
+      min_parallel = 2
+      max_parallel = 2
+      capabilities = 'kokkos'
+      compute_devices = 'cpu cuda xpu'
+      detail = 'objects that write only the time and non-time residual tags,'
+    []
+    [kernel_writes_residual]
+      type = CSVDiff
+      input = kokkos_written_residual_tags.i
+      csvdiff = kokkos_written_residual_tags_kernel.csv
+      cli_args = 'Kernels/diff/vector_tags=residual Outputs/file_base=kokkos_written_residual_tags_kernel'
+      min_parallel = 2
+      max_parallel = 2
+      capabilities = 'kokkos'
+      compute_devices = 'cpu cuda xpu'
+      detail = 'a kernel that writes the residual tag,'
+    []
+    [nodal_bc_writes_residual]
+      type = CSVDiff
+      input = kokkos_written_residual_tags.i
+      csvdiff = kokkos_written_residual_tags_bc.csv
+      cli_args = 'BCs/active=left Outputs/file_base=kokkos_written_residual_tags_bc'
+      min_parallel = 2
+      max_parallel = 2
+      capabilities = 'kokkos'
+      compute_devices = 'cpu cuda xpu'
+      detail = 'a nodal boundary condition that writes the residual tag,'
+    []
+    [nodal_bcs_only_together]
+      type = Exodiff
+      input = kokkos_nodal_bcs_only_together.i
+      exodiff = kokkos_nodal_bcs_only_together_out.e
+      min_parallel = 2
+      max_parallel = 2
+      capabilities = 'kokkos'
+      compute_devices = 'cpu cuda xpu'
+      detail = 'and a problem with no kernel, whose combined residual and Jacobian pass therefore runs '
+               'only nodal boundary conditions.'
+    []
+  []
 []
