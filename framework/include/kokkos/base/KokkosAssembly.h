@@ -343,6 +343,19 @@ private:
    */
   void cachePhysicalMap();
 
+#ifdef MOOSE_KOKKOS_SCOPE
+  /**
+   * Compute the inverse map and the Jacobian determinant of an element from the matrix of
+   * reference-to-physical derivatives
+   * @param J The matrix whose row k is dx/dxi_k in three coordinates; the rows beyond the mesh
+   * dimension are zero
+   * @param jacobian The pointer to store the inverse map (may be null)
+   * @param det The pointer to store the Jacobian determinant (may be null)
+   */
+  KOKKOS_FUNCTION void
+  computeInverseMap(const Real33 & J, Real33 * const jacobian, Real * const det) const;
+#endif
+
   /**
    * Reference of the MOOSE problem
    */
@@ -479,6 +492,34 @@ Assembly::coordTransformFactor(const ContiguousSubdomainID subdomain, const Real
 }
 
 KOKKOS_FUNCTION inline void
+Assembly::computeInverseMap(const Real33 & J, Real33 * const jacobian, Real * const det) const
+{
+  if (_dimension == 3)
+  {
+    if (jacobian)
+      *jacobian = J.inverse(_dimension);
+
+    if (det)
+      *det = J.determinant(_dimension);
+  }
+  else
+  {
+    // The mesh has fewer dimensions than coordinates (a shell or a curve, or a flat mesh): the
+    // top-left block of J is the map of the element's projection onto the coordinate plane, which
+    // is wrong for a tilted element and singular when the tangent plane contains the dropped
+    // direction. Use the surface metric g = J J^T instead, as libMesh's FEMap does; the entries of
+    // g outside the _dimension x _dimension block are zero.
+    const Real33 g = J * J.transpose();
+
+    if (jacobian)
+      *jacobian = J.transpose() * g.inverse(_dimension);
+
+    if (det)
+      *det = ::Kokkos::sqrt(g.determinant(_dimension));
+  }
+}
+
+KOKKOS_FUNCTION inline void
 Assembly::computePhysicalMap(const ElementInfo info,
                              const unsigned int qp,
                              Real33 * const jacobian,
@@ -506,12 +547,13 @@ Assembly::computePhysicalMap(const ElementInfo info,
     xyz += phi(node, qp) * points;
   }
 
-  if (jacobian)
-    *jacobian = J.inverse(_dimension);
+  Real det = 0;
+
+  if (jacobian || JxW)
+    computeInverseMap(J, jacobian, JxW ? &det : nullptr);
 
   if (JxW)
-    *JxW =
-        J.determinant(_dimension) * _weights(sid, elem_type)[qp] * coordTransformFactor(sid, xyz);
+    *JxW = det * _weights(sid, elem_type)[qp] * coordTransformFactor(sid, xyz);
 
   if (q_points)
     *q_points = xyz;
@@ -564,7 +606,7 @@ Assembly::computePhysicalMap(const ElementInfo info,
   }
 
   if (jacobian)
-    *jacobian = J.inverse(_dimension);
+    computeInverseMap(J, jacobian, nullptr);
 
   if (q_points)
     *q_points = xyz;
