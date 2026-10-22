@@ -1,0 +1,140 @@
+[Tests]
+  issues = '#00000'
+  design = 'syntax/Kokkos/index.md KokkosDiffusion.md'
+
+  [tilted_plane]
+    requirement = 'The Kokkos system shall solve a diffusion problem with a source on a square mesh rotated out of the xy-plane in three-dimensional space and give the result of the host assembly'
+    [host]
+      type = Exodiff
+      input = 'kokkos_tilted_plane.i'
+      exodiff = 'kokkos_tilted_plane_out.e'
+      cli_args = 'Kernels/dt/type=TimeDerivative Kernels/diff/type=Diffusion Kernels/force/type=BodyForce BCs/left/type=DirichletBC BCs/right/type=NeumannBC Postprocessors/area/type=ElementIntegralVariablePostprocessor Postprocessors/mass/type=ElementIntegralVariablePostprocessor'
+      detail = 'when run with the host objects, which produce the gold,'
+      compute_devices = 'cpu cuda xpu'
+    []
+    [kokkos]
+      type = Exodiff
+      input = 'kokkos_tilted_plane.i'
+      exodiff = 'kokkos_tilted_plane_out.e'
+      prereq = 'tilted_plane/host'
+      detail = 'for the solution computed with the Kokkos objects,'
+      capabilities = 'kokkos'
+      compute_devices = 'cpu cuda xpu'
+    []
+    [ad]
+      type = Exodiff
+      input = 'kokkos_tilted_plane.i'
+      exodiff = 'kokkos_tilted_plane_out.e'
+      cli_args = 'Kernels/dt/type=KokkosADTimeDerivative Kernels/diff/type=KokkosADDiffusion'
+      prereq = 'tilted_plane/kokkos'
+      detail = 'and for the solution computed with the Kokkos automatic differentiation kernels.'
+      capabilities = 'kokkos'
+      compute_devices = 'cpu cuda xpu'
+    []
+  []
+
+  [sheared_plane]
+    requirement = 'The Kokkos system shall solve a diffusion problem with a source on a parallelogram mesh rotated out of the xy-plane in three-dimensional space and give the result of the host assembly'
+    [host]
+      type = Exodiff
+      input = 'kokkos_sheared_plane.i'
+      exodiff = 'kokkos_sheared_plane_out.e'
+      cli_args = 'Kernels/dt/type=TimeDerivative Kernels/diff/type=Diffusion Kernels/force/type=BodyForce BCs/left/type=DirichletBC BCs/right/type=NeumannBC Postprocessors/area/type=ElementIntegralVariablePostprocessor Postprocessors/mass/type=ElementIntegralVariablePostprocessor'
+      detail = 'when run with the host objects, which produce the gold,'
+      compute_devices = 'cpu cuda xpu'
+    []
+    [kokkos]
+      type = Exodiff
+      input = 'kokkos_sheared_plane.i'
+      exodiff = 'kokkos_sheared_plane_out.e'
+      prereq = 'sheared_plane/host'
+      detail = 'for the solution computed with the Kokkos objects,'
+      capabilities = 'kokkos'
+      compute_devices = 'cpu cuda xpu'
+    []
+    [ad]
+      type = Exodiff
+      input = 'kokkos_sheared_plane.i'
+      exodiff = 'kokkos_sheared_plane_out.e'
+      cli_args = 'Kernels/dt/type=KokkosADTimeDerivative Kernels/diff/type=KokkosADDiffusion'
+      prereq = 'sheared_plane/kokkos'
+      detail = 'and for the solution computed with the Kokkos automatic differentiation kernels.'
+      capabilities = 'kokkos'
+      compute_devices = 'cpu cuda xpu'
+    []
+  []
+
+  [cylinder]
+    requirement = 'The Kokkos system shall solve a diffusion problem with a source on a mesh of an open cylinder in three-dimensional space and give the result of the host assembly'
+    [host]
+      type = Exodiff
+      input = 'kokkos_cylinder.i'
+      exodiff = 'kokkos_cylinder_out.e'
+      cli_args = 'Kernels/dt/type=TimeDerivative Kernels/diff/type=Diffusion Kernels/force/type=BodyForce BCs/left/type=DirichletBC BCs/right/type=NeumannBC Postprocessors/area/type=ElementIntegralVariablePostprocessor Postprocessors/mass/type=ElementIntegralVariablePostprocessor'
+      detail = 'when run with the host objects, which produce the gold,'
+      compute_devices = 'cpu cuda xpu'
+    []
+    [kokkos]
+      type = Exodiff
+      input = 'kokkos_cylinder.i'
+      exodiff = 'kokkos_cylinder_out.e'
+      prereq = 'cylinder/host'
+      detail = 'for the solution computed with the Kokkos objects.'
+      capabilities = 'kokkos'
+      compute_devices = 'cpu cuda xpu'
+    []
+  []
+
+  [tilted_line]
+    requirement = 'The Kokkos system shall solve a diffusion problem with a source on a one-dimensional mesh rotated off the x-axis in three-dimensional space and give the result of the host assembly'
+    [host]
+      type = Exodiff
+      input = 'kokkos_tilted_line.i'
+      exodiff = 'kokkos_tilted_line_out.e'
+      cli_args = 'Kernels/dt/type=TimeDerivative Kernels/diff/type=Diffusion Kernels/force/type=BodyForce BCs/left/type=DirichletBC BCs/right/type=NeumannBC Postprocessors/area/type=ElementIntegralVariablePostprocessor Postprocessors/mass/type=ElementIntegralVariablePostprocessor'
+      detail = 'when run with the host objects, which produce the gold,'
+      compute_devices = 'cpu cuda xpu'
+    []
+    [kokkos]
+      type = Exodiff
+      input = 'kokkos_tilted_line.i'
+      exodiff = 'kokkos_tilted_line_out.e'
+      prereq = 'tilted_line/host'
+      detail = 'for the solution computed with the Kokkos objects.'
+      capabilities = 'kokkos'
+      compute_devices = 'cpu cuda xpu'
+    []
+  []
+
+  [mirrored_plane]
+    requirement = 'The Kokkos system shall solve a diffusion problem with a source on a flat square mesh with clockwise element orientation and give the result of the host assembly'
+    [host]
+      type = Exodiff
+      input = 'kokkos_mirrored_plane.i'
+      exodiff = 'kokkos_mirrored_plane_out.e'
+      cli_args = 'Kernels/dt/type=TimeDerivative Kernels/diff/type=Diffusion Kernels/force/type=BodyForce BCs/left/type=DirichletBC BCs/right/type=NeumannBC Postprocessors/area/type=ElementIntegralVariablePostprocessor Postprocessors/mass/type=ElementIntegralVariablePostprocessor'
+      detail = 'when run with the host objects, which produce the gold,'
+      compute_devices = 'cpu cuda xpu'
+    []
+    [kokkos]
+      type = Exodiff
+      input = 'kokkos_mirrored_plane.i'
+      exodiff = 'kokkos_mirrored_plane_out.e'
+      prereq = 'mirrored_plane/host'
+      detail = 'for the solution computed with the Kokkos objects.'
+      capabilities = 'kokkos'
+      compute_devices = 'cpu cuda xpu'
+    []
+  []
+
+  [tilted_plane_jacobian]
+    type = PetscJacobianTester
+    input = 'kokkos_tilted_plane.i'
+    cli_args = 'Outputs/exodus=false'
+    recover = false
+    requirement = 'The Kokkos system shall compute a Jacobian that matches the finite difference Jacobian for a diffusion problem with a source on a square mesh rotated out of the xy-plane in three-dimensional space.'
+    design = 'framework_stp.md'
+    capabilities = 'kokkos'
+    compute_devices = 'cpu cuda xpu'
+  []
+[]
