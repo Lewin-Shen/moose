@@ -18,7 +18,7 @@
     difference_tol = 5e-5
     run_sim = True
     max_parallel = 1
-    cli_args = 'Outputs/csv=false Outputs/exodus=false Executioner/num_steps=1'
+    cli_args = 'Outputs/csv=false Outputs/exodus/enable=false Executioner/num_steps=1'
     capabilities = 'kokkos'
     compute_devices = 'cpu cuda'
     requirement = 'The hand-coded Kokkos Jacobian of the six-field PFHub Benchmark 2 system (KokkosAllenCahn with the two-phase parabolic free energy) shall pass finite-difference comparison.'
@@ -103,5 +103,23 @@
     capabilities = 'kokkos'
     compute_devices = 'cpu cuda'
     requirement = 'The Kokkos total free energy density shall pair each gradient energy coefficient with its interfacial variable by position.'
+  []
+
+  # G5 (ii): the free_energy integral of the flat twin against the CSV gold gold/b2d_flat_out.csv, the
+  # output of ../cpu_control/b2d_flat_cpu.i on the same binary (Outputs/file_base=b2d_flat_out, one rank).
+  # The design's acceptance is 1e-10 relative at step 0; this row applies it at every step, which the
+  # measured agreement (at most 2.9e-16 over the five steps, one rank) supports. The Exodiff rows above
+  # keep their 5.5e-6.
+  [flat_free_energy]
+    type = CSVDiff
+    input = b2d_flat_kokkos.i
+    csvdiff = b2d_flat_out.csv
+    rel_err = 1e-10
+    abs_zero = 1e-14
+    max_parallel = 1
+    cli_args = 'Outputs/file_base=b2d_flat_out'
+    capabilities = 'kokkos'
+    compute_devices = 'cpu cuda'
+    requirement = 'The Kokkos PFHub Benchmark 2 system on a flat mesh shall reproduce the free energy integral of its CPU control within a relative 1e-10 at every step (G5 (ii)).'
   []
 []

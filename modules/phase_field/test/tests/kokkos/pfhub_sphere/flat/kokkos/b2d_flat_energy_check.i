@@ -315,12 +315,20 @@
     expression = 'abs(free_energy - free_energy_sum) / (abs(e_c) + abs(e_eta1) + abs(e_eta2) + abs(e_eta3) + abs(e_eta4))'
     execute_on = 'initial timestep_end'
   []
+  # the acceptance as a 0/1 flag: ParsedPostprocessor compares with epsilon 0 (FunctionParserUtils),
+  # a Terminator compares with fparser's default epsilon (about 1e-12), so the comparison lives here
+  [energy_check_fail]
+    type = ParsedPostprocessor
+    pp_names = 'energy_check_rel'
+    expression = 'if(energy_check_rel > 1e-12, 1, 0)'
+    execute_on = 'initial timestep_end'
+  []
 []
 
 [UserObjects]
   [energy_check]
     type = Terminator
-    expression = 'energy_check_rel > 1e-12'
+    expression = 'energy_check_fail > 0.5'
     fail_mode = HARD
     error_level = ERROR
     message = 'G5 (i): the list material integral differs from the five-instance sum by more than 1e-12 of the summed absolute integrals'
@@ -354,7 +362,10 @@
 []
 
 [Outputs]
-  exodus = true
   csv = true
   execute_on = 'initial timestep_end'
+  [exodus]
+    type = Exodus
+    execute_input_on = none
+  []
 []

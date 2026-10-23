@@ -348,7 +348,10 @@
 []
 
 [Outputs]
-  exodus = true
   csv = true
   execute_on = 'initial timestep_end'
+  [exodus]
+    type = Exodus
+    execute_input_on = none
+  []
 []

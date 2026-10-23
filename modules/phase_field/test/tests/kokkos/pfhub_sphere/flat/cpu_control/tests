@@ -70,7 +70,7 @@
     difference_tol = 5e-5
     run_sim = True
     max_parallel = 1
-    cli_args = 'Outputs/csv=false Outputs/exodus=false Executioner/num_steps=1'
+    cli_args = 'Outputs/csv=false Outputs/exodus/enable=false Executioner/num_steps=1'
     requirement = 'The CPU Jacobian of the six-field PFHub Benchmark 2 system shall pass finite-difference comparison at the gate tolerances.'
   []
 
