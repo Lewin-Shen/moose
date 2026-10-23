@@ -1,0 +1,86 @@
+[Tests]
+  issues = '#30655'
+  design = 'KokkosKernels/index.md'
+
+  # Explicit CPU controls of port 05 (flat mesh): the decks that generate the committed gold of
+  # ../kokkos/gold (same binary, CPU objects only), kept as a CPU regression against that gold, plus the
+  # CPU Jacobian check that gives the floor of the Kokkos gate and the CPU twin of the pairing fixture.
+
+  # G0 and G3: the flat CPU control against the gold it generated, one and four ranks
+  [flat_run]
+    type = Exodiff
+    input = b2d_flat_cpu.i
+    exodiff = b2d_flat_out.e
+    gold_dir = ../kokkos/gold
+    abs_zero = 1e-10
+    rel_err = 5.5e-6
+    max_parallel = 1
+    cli_args = 'Outputs/file_base=b2d_flat_out'
+    compute_devices = 'cpu cuda'
+    requirement = 'The explicit CPU control of the PFHub Benchmark 2 system on a flat mesh shall reproduce the committed gold on one rank.'
+  []
+  [flat_run_np4]
+    type = Exodiff
+    input = b2d_flat_cpu.i
+    exodiff = b2d_flat_np4_out.e
+    gold_dir = ../kokkos/gold
+    abs_zero = 1e-10
+    rel_err = 5.5e-6
+    min_parallel = 4
+    max_parallel = 4
+    cli_args = 'Outputs/file_base=b2d_flat_np4_out'
+    compute_devices = 'cpu cuda'
+    requirement = 'The explicit CPU control of the PFHub Benchmark 2 system on a flat mesh shall reproduce the committed gold on four ranks.'
+  []
+
+  # G2b: the parsed material's 21 outputs at the fixed states, against the gold they generated
+  [states_p1_run]
+    type = Exodiff
+    input = b2d_states_p1_cpu.i
+    exodiff = b2d_states_p1_out.e
+    gold_dir = ../kokkos/gold
+    abs_zero = 0
+    rel_err = 1e-12
+    exodiff_opts = '-combined'
+    max_parallel = 1
+    cli_args = 'Outputs/file_base=b2d_states_p1_out'
+    compute_devices = 'cpu cuda'
+    requirement = 'The CPU parsed free energy of PFHub Benchmark 2 shall reproduce the committed gold at 17 fixed states.'
+  []
+  [states_p2_run]
+    type = Exodiff
+    input = b2d_states_p2_cpu.i
+    exodiff = b2d_states_p2_out.e
+    gold_dir = ../kokkos/gold
+    abs_zero = 0
+    rel_err = 1e-12
+    exodiff_opts = '-combined'
+    max_parallel = 1
+    cli_args = 'Outputs/file_base=b2d_states_p2_out'
+    compute_devices = 'cpu cuda'
+    requirement = 'The CPU parsed free energy of PFHub Benchmark 2 shall reproduce the committed gold at 24 fixed states.'
+  []
+
+  # G2 floor: the same finite-difference Jacobian check on the CPU objects, evidence that the tolerances of
+  # the ../kokkos gate are attainable on this deck independent of the Kokkos objects
+  [jac_cpu]
+    type = PetscJacobianTester
+    input = b2d_jac_cpu.i
+    ratio_tol = 5e-8
+    difference_tol = 5e-5
+    run_sim = True
+    max_parallel = 1
+    cli_args = 'Outputs/csv=false Outputs/exodus=false Executioner/num_steps=1'
+    requirement = 'The CPU Jacobian of the six-field PFHub Benchmark 2 system shall pass finite-difference comparison at the gate tolerances.'
+  []
+
+  # G5 (i-b), CPU twin: TotalFreeEnergy with distinct kappas on linear fields equals 0.01125 everywhere
+  [density_pairing_cpu]
+    type = RunApp
+    input = b2d_density_pairing_cpu.i
+    max_parallel = 1
+    cli_args = 'Outputs/file_base=b2d_density_pairing_cpu_out'
+    compute_devices = 'cpu cuda'
+    requirement = 'The CPU total free energy aux kernel shall pair each gradient energy coefficient with its interfacial variable by position.'
+  []
+[]

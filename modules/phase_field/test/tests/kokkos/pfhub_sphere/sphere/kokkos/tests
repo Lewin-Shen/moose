@@ -1,0 +1,37 @@
+[Tests]
+  issues = '#30655'
+  design = 'KokkosKernels/index.md'
+
+  # Port 05 on the PFHub Benchmark 2 sphere mesh (a mesh of dimension 2 in 3D coordinates; needs the Kokkos
+  # element map with the surface metric). The Exodiff blocks compare against the committed gold/ files,
+  # the outputs of ../cpu_control/b2d_sphere_cpu.i on the same binary (Outputs/file_base=<name>, one or
+  # four ranks as the block); regenerate the golds with that deck whenever a deck changes.
+
+  # G6: the sphere twin against the CPU control's gold, three steps, the six nodal fields, the f_density
+  # field (non-affine quads: the JxW-weighted element average), free_energy and the area integral
+  [sphere_match]
+    type = Exodiff
+    input = b2d_sphere_kokkos.i
+    exodiff = b2d_sphere_out.e
+    abs_zero = 1e-10
+    rel_err = 5.5e-6
+    max_parallel = 1
+    cli_args = 'Outputs/file_base=b2d_sphere_out'
+    capabilities = 'kokkos'
+    compute_devices = 'cpu cuda'
+    requirement = 'The Kokkos PFHub Benchmark 2 system on the sphere mesh shall match its CPU control on one rank.'
+  []
+  [sphere_match_np4]
+    type = Exodiff
+    input = b2d_sphere_kokkos.i
+    exodiff = b2d_sphere_np4_out.e
+    abs_zero = 1e-10
+    rel_err = 5.5e-6
+    min_parallel = 4
+    max_parallel = 4
+    cli_args = 'Outputs/file_base=b2d_sphere_np4_out'
+    capabilities = 'kokkos'
+    compute_devices = 'cpu cuda'
+    requirement = 'The Kokkos PFHub Benchmark 2 system on the sphere mesh shall match its CPU control on four ranks.'
+  []
+[]
