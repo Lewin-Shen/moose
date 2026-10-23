@@ -13,6 +13,8 @@
   # every block is nonzero; the CPU control gives the floor (../cpu_control, jac_cpu)
   [jac]
     type = PetscJacobianTester
+    # the tester prepends Outputs/exodus=false by default, an unused parameter now that Exodus is an [exodus] block
+    turn_off_exodus_output = false
     input = b2d_jac_kokkos.i
     ratio_tol = 5e-8
     difference_tol = 5e-5
