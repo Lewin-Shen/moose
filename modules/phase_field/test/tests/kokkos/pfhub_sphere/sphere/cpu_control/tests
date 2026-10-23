@@ -1,0 +1,34 @@
+[Tests]
+  issues = '#30655'
+  design = 'KokkosKernels/index.md'
+
+  # Explicit CPU control of port 05 on the sphere mesh: the deck that generates the committed gold of
+  # ../kokkos/gold (same binary, CPU objects only), kept as a CPU regression against that gold.
+
+  # G0 and G6: the sphere CPU control against the gold it generated, one and four ranks
+  [sphere_run]
+    type = Exodiff
+    input = b2d_sphere_cpu.i
+    exodiff = b2d_sphere_out.e
+    gold_dir = ../kokkos/gold
+    abs_zero = 1e-10
+    rel_err = 5.5e-6
+    max_parallel = 1
+    cli_args = 'Outputs/file_base=b2d_sphere_out'
+    compute_devices = 'cpu cuda'
+    requirement = 'The explicit CPU control of the PFHub Benchmark 2 system on the sphere mesh shall reproduce the committed gold on one rank.'
+  []
+  [sphere_run_np4]
+    type = Exodiff
+    input = b2d_sphere_cpu.i
+    exodiff = b2d_sphere_np4_out.e
+    gold_dir = ../kokkos/gold
+    abs_zero = 1e-10
+    rel_err = 5.5e-6
+    min_parallel = 4
+    max_parallel = 4
+    cli_args = 'Outputs/file_base=b2d_sphere_np4_out'
+    compute_devices = 'cpu cuda'
+    requirement = 'The explicit CPU control of the PFHub Benchmark 2 system on the sphere mesh shall reproduce the committed gold on four ranks.'
+  []
+[]

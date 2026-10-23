@@ -1,0 +1,107 @@
+[Tests]
+  issues = '#30655'
+  design = 'KokkosKernels/index.md'
+
+  # Port 05, the PFHub Benchmark 2 part (d) objects on the device (KokkosAllenCahn,
+  # KokkosTwoPhaseParabolicFreeEnergy, KokkosTotalFreeEnergyDensity), flat mesh. The Exodiff blocks compare
+  # against the committed gold/ files, which are the outputs of the CPU control decks of ../cpu_control on
+  # the same binary (Outputs/file_base=<name>, one rank or four ranks as the block); regenerate the golds
+  # with those decks whenever a deck changes. The G5 decks check themselves with a Terminator.
+
+  # G2: the hand-coded Jacobians of KokkosAllenCahn (diagonal, the c column, the eta-eta cross block) and of
+  # the reused kernels against PETSc finite differences, NEWTON, SMP full = true, one step, at a state where
+  # every block is nonzero; the CPU control gives the floor (../cpu_control, jac_cpu)
+  [jac]
+    type = PetscJacobianTester
+    input = b2d_jac_kokkos.i
+    ratio_tol = 5e-8
+    difference_tol = 5e-5
+    run_sim = True
+    max_parallel = 1
+    cli_args = 'Outputs/csv=false Outputs/exodus=false Executioner/num_steps=1'
+    capabilities = 'kokkos'
+    compute_devices = 'cpu cuda'
+    requirement = 'The hand-coded Kokkos Jacobian of the six-field PFHub Benchmark 2 system (KokkosAllenCahn with the two-phase parabolic free energy) shall pass finite-difference comparison.'
+  []
+
+  # G2b: the 21 device outputs of KokkosTwoPhaseParabolicFreeEnergy at fixed states against the
+  # DerivativeParsedMaterial of the CPU control, combined tolerance abs(d - h) < 1e-12 max(1, |d|, |h|)
+  [states_p1]
+    type = Exodiff
+    input = b2d_states_p1_kokkos.i
+    exodiff = b2d_states_p1_out.e
+    abs_zero = 0
+    rel_err = 1e-12
+    exodiff_opts = '-combined'
+    max_parallel = 1
+    cli_args = 'Outputs/file_base=b2d_states_p1_out'
+    capabilities = 'kokkos'
+    compute_devices = 'cpu cuda'
+    requirement = 'The Kokkos two-phase parabolic free energy shall reproduce the 21 values and derivatives of the parsed CPU material at 17 fixed states.'
+  []
+  [states_p2]
+    type = Exodiff
+    input = b2d_states_p2_kokkos.i
+    exodiff = b2d_states_p2_out.e
+    abs_zero = 0
+    rel_err = 1e-12
+    exodiff_opts = '-combined'
+    max_parallel = 1
+    cli_args = 'Outputs/file_base=b2d_states_p2_out'
+    capabilities = 'kokkos'
+    compute_devices = 'cpu cuda'
+    requirement = 'The Kokkos two-phase parabolic free energy shall reproduce the 21 values and derivatives of the parsed CPU material at 24 fixed states, among them states outside [0, 1].'
+  []
+
+  # G3: the flat twin against the CPU control's gold, five steps, the six nodal fields, the f_density field
+  # and the free_energy global variable, one and four ranks
+  [flat_match]
+    type = Exodiff
+    input = b2d_flat_kokkos.i
+    exodiff = b2d_flat_out.e
+    abs_zero = 1e-10
+    rel_err = 5.5e-6
+    max_parallel = 1
+    cli_args = 'Outputs/file_base=b2d_flat_out'
+    capabilities = 'kokkos'
+    compute_devices = 'cpu cuda'
+    requirement = 'The Kokkos PFHub Benchmark 2 system on a flat mesh shall match its CPU control on one rank.'
+  []
+  [flat_match_np4]
+    type = Exodiff
+    input = b2d_flat_kokkos.i
+    exodiff = b2d_flat_np4_out.e
+    abs_zero = 1e-10
+    rel_err = 5.5e-6
+    min_parallel = 4
+    max_parallel = 4
+    cli_args = 'Outputs/file_base=b2d_flat_np4_out'
+    capabilities = 'kokkos'
+    compute_devices = 'cpu cuda'
+    requirement = 'The Kokkos PFHub Benchmark 2 system on a flat mesh shall match its CPU control on four ranks.'
+  []
+
+  # G5 (i): the list material's integral against the sum of five single-variable densities in the same
+  # run, at every step, within 1e-12 of the summed absolute integrals (Terminator in the deck)
+  [energy_check]
+    type = RunApp
+    input = b2d_flat_energy_check.i
+    max_parallel = 1
+    cli_args = 'Outputs/file_base=b2d_flat_energy_check_out'
+    capabilities = 'kokkos'
+    compute_devices = 'cpu cuda'
+    requirement = 'The Kokkos total free energy density over five variables shall integrate to the sum of the five single-variable densities.'
+  []
+
+  # G5 (i-b): distinct kappas on linear fields, no solve; every density value, its integral and the
+  # five-instance sum equal 0.01125 within absolute 1e-12 (Terminator in the deck)
+  [density_pairing]
+    type = RunApp
+    input = b2d_density_pairing_kokkos.i
+    max_parallel = 1
+    cli_args = 'Outputs/file_base=b2d_density_pairing_kokkos_out'
+    capabilities = 'kokkos'
+    compute_devices = 'cpu cuda'
+    requirement = 'The Kokkos total free energy density shall pair each gradient energy coefficient with its interfacial variable by position.'
+  []
+[]
