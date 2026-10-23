@@ -205,12 +205,18 @@
     value_type = min
     execute_on = 'initial timestep_end'
   []
+  [pairing_fail]
+    type = ParsedPostprocessor
+    pp_names = 'free_energy free_energy_sum f_density_max f_density_min'
+    expression = 'if(abs(free_energy - 0.01125) > 1e-12 | abs(free_energy_sum - 0.01125) > 1e-12 | abs(f_density_max - 0.01125) > 1e-12 | abs(f_density_min - 0.01125) > 1e-12, 1, 0)'
+    execute_on = 'initial timestep_end'
+  []
 []
 
 [UserObjects]
   [pairing_check]
     type = Terminator
-    expression = 'abs(free_energy - 0.01125) > 1e-12 | abs(free_energy_sum - 0.01125) > 1e-12 | abs(f_density_max - 0.01125) > 1e-12 | abs(f_density_min - 0.01125) > 1e-12'
+    expression = 'pairing_fail > 0.5'
     fail_mode = HARD
     error_level = ERROR
     message = 'G5 (i-b): a density, its integral or the five-instance sum differs from 0.01125 by more than 1e-12'
@@ -223,7 +229,10 @@
 []
 
 [Outputs]
-  exodus = true
   csv = true
   execute_on = 'initial timestep_end'
+  [exodus]
+    type = Exodus
+    execute_input_on = none
+  []
 []

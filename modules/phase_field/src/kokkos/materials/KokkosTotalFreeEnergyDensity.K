@@ -20,7 +20,9 @@ KokkosTotalFreeEnergyDensity::validParams()
   params.addClassDescription(
       "Total free energy density (both the bulk and gradient parts) as a material property, where "
       "the bulk free energy has been defined in a material, for integration on the device with "
-      "KokkosElementIntegralMaterialProperty");
+      "KokkosElementIntegralMaterialProperty. A kappa_names entry that parses as a number is read "
+      "as a constant on the device, where the host TotalFreeEnergy looks up a property of that "
+      "name.");
   params.addCoupledVar("interfacial_vars", "Variable names that contribute to interfacial energy");
   params.addCoupledVar(
       "additional_free_energy",

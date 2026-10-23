@@ -28,10 +28,16 @@ KokkosTwoPhaseParabolicFreeEnergy::validParams()
       "height. Declares f and all its first and second derivatives under the "
       "DerivativeParsedMaterial property names; the pair terms are always declared.");
   params.addParam<MaterialPropertyName>(
-      "property_name", "f_loc", "Name of the free energy property (derivative names derive from it)");
+      "property_name",
+      "F",
+      "Name of the free energy property (derivative names derive from it); the host parsed "
+      "materials default to F");
   params.addRequiredCoupledVar("c", "Concentration variable");
   params.addRequiredCoupledVar("etas", "Order parameter variables (one or more)");
-  params.addParam<Real>("rho_sq", 2.0, "Curvature of the two parabolic phase energies");
+  params.addParam<Real>(
+      "rho_sq",
+      2.0,
+      "Coefficient of the two parabolic phase energies (their curvature is 2 rho_sq)");
   params.addParam<Real>("ca", 0.3, "Composition at the minimum of the first phase energy");
   params.addParam<Real>("cb", 0.7, "Composition at the minimum of the second phase energy");
   params.addParam<Real>("w", 1.0, "Barrier height of the multi-well (not a chemical potential)");

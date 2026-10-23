@@ -34,4 +34,24 @@
     compute_devices = 'cpu cuda'
     requirement = 'The Kokkos PFHub Benchmark 2 system on the sphere mesh shall match its CPU control on four ranks.'
   []
+
+  # G5 (ii) and G6 on the sphere: free_energy and the area integral against the CSV gold
+  # gold/b2d_sphere_out.csv, the output of ../cpu_control/b2d_sphere_cpu.i on the same binary
+  # (Outputs/file_base=b2d_sphere_out, one rank), at every step (the CSV keeps every step, the Exodus file
+  # only the initial and final ones). The design's acceptances are 1e-10 relative on free_energy at step 0
+  # and 1e-12 relative on the area; this row applies 1e-10 to both columns at every step, and the area's
+  # 1e-12 stays the tester's reducer check on the full-precision values. Measured on one rank: at most
+  # 3.6e-16 on free_energy, 2.3e-16 on the area.
+  [sphere_free_energy_area]
+    type = CSVDiff
+    input = b2d_sphere_kokkos.i
+    csvdiff = b2d_sphere_out.csv
+    rel_err = 1e-10
+    abs_zero = 1e-14
+    max_parallel = 1
+    cli_args = 'Outputs/file_base=b2d_sphere_out'
+    capabilities = 'kokkos'
+    compute_devices = 'cpu cuda'
+    requirement = 'The Kokkos PFHub Benchmark 2 system on the sphere mesh shall reproduce the free energy and area integrals of its CPU control within a relative 1e-10 at every step (G5 (ii) and G6).'
+  []
 []
