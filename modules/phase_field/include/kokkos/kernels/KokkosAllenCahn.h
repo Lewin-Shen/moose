@@ -18,7 +18,10 @@
  *
  *   R_i = L dF/du psi_i
  *
- * with the Jacobian of AllenCahn transcribed exactly for constant L (KernelValue applies psi_i):
+ * with the Jacobian of AllenCahn transcribed exactly for constant L (KernelValue applies psi_i;
+ * phi_j in the off-diagonal hook is the column variable's shape function, as the Kokkos base supplies
+ * it, where the host uses the kernel variable's: the same function while every variable has the same
+ * finite element family and order, which the gate decks and the benchmark deck have):
  *
  *   diagonal     : L d^2F/du^2 phi_j
  *   off-diagonal : L d^2F/du darg phi_j for an argument of 'coupled_variables'
