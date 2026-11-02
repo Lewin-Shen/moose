@@ -1,0 +1,609 @@
+[Tests]
+  # The factored Schur shell of the split Cahn-Hilliard FieldSplit (SplitCHFactoredSchurPreconditioner)
+  # on the square deck. The jacobian spec checks the deck's kernels on its SMP block, which never
+  # constructs the shell. The RunException specs check the run-time requirements the object enforces.
+  # The verify_apply groups run the shell with its diagnostic dump on and then the reference script
+  # verify_apply.py on the dumps; each group first removes the dumps of an earlier run, because the
+  # object refuses to overwrite a dump. The dumps are written under the run's file base. Every run
+  # spec requires the counters the object prints at the end of the run to balance, and two specs run
+  # on four processes with MUMPS factors. The object needs PETSc 3.20 or later.
+
+  [jacobian]
+    type = PetscJacobianTester
+    input = square_split_ch.i
+    cli_args = 'Preconditioning/active=smp_full Executioner/num_steps=1'
+    ratio_tol = 5e-8
+    difference_tol = 5e-5
+    max_parallel = 1
+    capabilities = 'petsc>=3.20'
+    requirement = 'The split Cahn-Hilliard kernels of the factored Schur shell test deck shall have a '
+                  'Jacobian that matches the finite-difference Jacobian.'
+  []
+
+  [requirements]
+    requirement = 'The factored Schur preconditioner of the split Cahn-Hilliard system shall stop with '
+                  'an error naming the cause'
+    [wrong_mobility]
+      type = RunException
+      input = square_split_ch.i
+      cli_args = 'Preconditioning/fs_factored/mobility=2.5 Executioner/num_steps=1'
+      expect_err = 'block check failed at build 1: beta_fit = 0\.[34][0-9]* against kappa/M = 0\.8 '
+      max_parallel = 1
+      capabilities = 'petsc>=3.20'
+      detail = 'when its mobility does not match the one of the assembled blocks,'
+    []
+    [shell_option]
+      type = RunException
+      input = square_split_ch.i
+      cli_args = '-fieldsplit_c_pc_type hypre Executioner/num_steps=1'
+      expect_err = "requires '-fieldsplit_c_pc_type shell' under the concentration split 'c'.*found 'hypre'"
+      max_parallel = 1
+      capabilities = 'petsc>=3.20'
+      detail = 'when the Schur complement sub-solver is not a shell,'
+    []
+    [variable_scaling]
+      type = RunException
+      input = square_split_ch.i
+      cli_args = 'Variables/chem_pot_c/scaling=2 Executioner/num_steps=1'
+      expect_err = '\) = 2 \(must equal 1 within 1e-10\)'
+      max_parallel = 1
+      capabilities = 'petsc>=3.20'
+      detail = 'when a variable is scaled,'
+    []
+    [time_integrator]
+      type = RunException
+      input = square_split_ch.i
+      cli_args = 'Executioner/scheme=bdf2 Executioner/num_steps=1'
+      expect_err = "requires the implicit Euler time integrator on the concentration 'c'.*found BDF2"
+      max_parallel = 1
+      capabilities = 'petsc>=3.20'
+      detail = 'when the time integrator is not implicit Euler,'
+    []
+    [split_order]
+      type = RunException
+      input = square_split_ch.i
+      cli_args = "Preconditioning/fs_factored/wc/splitting='c w' Executioner/num_steps=1"
+      expect_err = 'must list the chemical potential split first'
+      max_parallel = 1
+      capabilities = 'petsc>=3.20'
+      detail = 'when the concentration split is listed first,'
+    []
+    [schur_factorization]
+      type = RunException
+      input = square_split_ch.i
+      cli_args = '-pc_fieldsplit_schur_fact_type lower Executioner/num_steps=1'
+      expect_err = "requires the full Schur factorization under its top split 'wc'.*found "
+                   "'-pc_fieldsplit_schur_fact_type lower'"
+      max_parallel = 1
+      capabilities = 'petsc>=3.20'
+      detail = 'when an option replaces the full Schur factorization of the top split,'
+    []
+    [schur_preconditioning_matrix]
+      type = RunException
+      input = square_split_ch.i
+      cli_args = '-pc_fieldsplit_schur_precondition selfp Executioner/num_steps=1'
+      expect_err = "found a FieldSplit whose Schur complement preconditioning matrix is built from "
+                   "'SELFP', not from A11"
+      max_parallel = 1
+      capabilities = 'petsc>=3.20'
+      detail = 'when an option replaces A11 as the Schur complement preconditioning matrix,'
+    []
+    [reversed_sign]
+      type = RunException
+      input = square_split_ch.i
+      cli_args = 'Kernels/chem_pot_c_CoefReaction/coefficient=1 Executioner/num_steps=1'
+      expect_err = "must be negative: A00 is the chemical potential's block, -Mm"
+      max_parallel = 1
+      capabilities = 'petsc>=3.20'
+      detail = 'when the sign of the chemical potential equation is reversed,'
+    []
+    [finite_element_type]
+      type = RunException
+      input = square_split_ch.i
+      cli_args = 'Mesh/square/elem_type=QUAD9 Variables/chem_pot_c/order=SECOND '
+                 'Executioner/num_steps=1'
+      expect_err = "requires the variables 'c' and 'chem_pot_c' to have the same finite element "
+                   "type and the same block restriction.*found LAGRANGE of order 1.*LAGRANGE of "
+                   "order 2"
+      max_parallel = 1
+      capabilities = 'petsc>=3.20'
+      detail = 'when the two variables differ in finite element type, and'
+    []
+    [factor_solver_type]
+      type = RunException
+      input = square_split_ch.i
+      cli_args = '-fieldsplit_c_hessian_factor_ksp_type gmres Executioner/num_steps=1'
+      expect_err = "requires the factor solver under the options prefix "
+                   "'-fieldsplit_c_hessian_factor_' to be preonly.*found 'gmres'"
+      max_parallel = 1
+      capabilities = 'petsc>=3.20'
+      detail = 'when an option replaces the preonly solver of a factor.'
+    []
+  []
+
+  [verify_apply]
+    requirement = 'The factored Schur preconditioner of the split Cahn-Hilliard system shall apply the '
+                  'operator of its factored form, checked against dense matrices formed from the dumped '
+                  'blocks'
+    [consistent_clean]
+      type = RunCommand
+      command = 'rm -f consistent_exact_verify_apply_*.bin'
+      use_shell = True
+      capabilities = 'petsc>=3.20'
+      detail = 'in the consistent mass form with exact factors (removing the dumps of an earlier run),'
+    []
+    [consistent_run]
+      type = RunApp
+      input = square_split_ch.i
+      cli_args = 'Outputs/file_base=consistent_exact Preconditioning/fs_factored/verify_apply=true '
+                 'Preconditioning/fs_factored/schur_form=consistent_mass Executioner/num_steps=1 '
+                 '-options_left'
+      expect_out = 'There are no unused options'
+      absent_out = 'NOT BALANCED'
+      prereq = 'verify_apply/consistent_clean'
+      recover = false
+      restep = false
+      max_parallel = 1
+      capabilities = 'petsc>=3.20'
+      detail = 'in the consistent mass form with exact factors (the run),'
+    []
+    [consistent_check]
+      type = RunCommand
+      command = 'python3 -I verify_apply.py consistent_exact --build 1 --mobility 5 --kappa 2 --beta 1 '
+                '--form consistent_mass --mode exact --fit'
+      prereq = 'verify_apply/consistent_run'
+      capabilities = 'petsc>=3.20'
+      required_python_packages = 'numpy scipy'
+      detail = 'in the consistent mass form with exact factors (the reference script),'
+    []
+    [diagonal_clean]
+      type = RunCommand
+      command = 'rm -f diagonal_exact_verify_apply_*.bin'
+      use_shell = True
+      capabilities = 'petsc>=3.20'
+      detail = 'in the diagonal mass form with exact factors (removing the dumps of an earlier run),'
+    []
+    [diagonal_run]
+      type = RunApp
+      input = square_split_ch.i
+      cli_args = 'Outputs/file_base=diagonal_exact Preconditioning/fs_factored/verify_apply=true '
+                 'Preconditioning/fs_factored/schur_form=diagonal_mass Executioner/num_steps=1 '
+                 '-options_left'
+      expect_out = 'There are no unused options'
+      absent_out = 'NOT BALANCED'
+      prereq = 'verify_apply/diagonal_clean'
+      recover = false
+      restep = false
+      max_parallel = 1
+      capabilities = 'petsc>=3.20'
+      detail = 'in the diagonal mass form with exact factors (the run),'
+    []
+    [diagonal_check]
+      type = RunCommand
+      command = 'python3 -I verify_apply.py diagonal_exact --build 1 --mobility 5 --kappa 2 --beta 1 '
+                '--form diagonal_mass --mode exact --fit'
+      prereq = 'verify_apply/diagonal_run'
+      capabilities = 'petsc>=3.20'
+      required_python_packages = 'numpy scipy'
+      detail = 'in the diagonal mass form with exact factors (the reference script),'
+    []
+    [consistent_vcycle_clean]
+      type = RunCommand
+      command = 'rm -f consistent_vcycle_verify_apply_*.bin'
+      use_shell = True
+      capabilities = 'petsc>=3.20'
+      detail = 'in the consistent mass form with algebraic multigrid factors (removing the dumps of an '
+               'earlier run),'
+    []
+    [consistent_vcycle_run]
+      type = RunApp
+      input = square_split_ch.i
+      cli_args = 'Outputs/file_base=consistent_vcycle Preconditioning/fs_factored/verify_apply=true '
+                 'Preconditioning/fs_factored/schur_form=consistent_mass Executioner/num_steps=1 '
+                 '-fieldsplit_c_stiffness_factor_pc_type hypre '
+                 '-fieldsplit_c_stiffness_factor_pc_hypre_type boomeramg '
+                 '-fieldsplit_c_stiffness_factor_pc_hypre_boomeramg_coarsen_type PMIS '
+                 '-fieldsplit_c_stiffness_factor_pc_hypre_boomeramg_interp_type ext+i '
+                 '-fieldsplit_c_stiffness_factor_pc_hypre_boomeramg_relax_type_all l1scaled-Jacobi '
+                 '-fieldsplit_c_stiffness_factor_pc_hypre_boomeramg_no_CF true '
+                 '-fieldsplit_c_stiffness_factor_pc_hypre_boomeramg_smooth_type ILU '
+                 '-fieldsplit_c_stiffness_factor_pc_hypre_boomeramg_ilu_tri_solve false '
+                 '-fieldsplit_c_hessian_factor_pc_type hypre '
+                 '-fieldsplit_c_hessian_factor_pc_hypre_type boomeramg '
+                 '-fieldsplit_c_hessian_factor_pc_hypre_boomeramg_coarsen_type PMIS '
+                 '-fieldsplit_c_hessian_factor_pc_hypre_boomeramg_interp_type ext+i '
+                 '-fieldsplit_c_hessian_factor_pc_hypre_boomeramg_relax_type_all l1scaled-Jacobi '
+                 '-fieldsplit_c_hessian_factor_pc_hypre_boomeramg_no_CF true '
+                 '-fieldsplit_c_hessian_factor_pc_hypre_boomeramg_smooth_type ILU '
+                 '-fieldsplit_c_hessian_factor_pc_hypre_boomeramg_ilu_tri_solve false '
+                 '-options_left'
+      expect_out = 'There are no unused options'
+      absent_out = 'NOT BALANCED'
+      prereq = 'verify_apply/consistent_vcycle_clean'
+      recover = false
+      restep = false
+      max_parallel = 1
+      capabilities = 'petsc>=3.20'
+      detail = 'in the consistent mass form with algebraic multigrid factors (the run),'
+    []
+    [consistent_vcycle_check]
+      type = RunCommand
+      command = 'python3 -I verify_apply.py consistent_vcycle --build 1 --mobility 5 --kappa 2 '
+                '--beta 1 --form consistent_mass --mode approximate'
+      prereq = 'verify_apply/consistent_vcycle_run'
+      capabilities = 'petsc>=3.20'
+      required_python_packages = 'numpy scipy'
+      detail = 'in the consistent mass form with algebraic multigrid factors (the reference script),'
+    []
+    [diagonal_vcycle_clean]
+      type = RunCommand
+      command = 'rm -f diagonal_vcycle_verify_apply_*.bin'
+      use_shell = True
+      capabilities = 'petsc>=3.20'
+      detail = 'in the diagonal mass form with algebraic multigrid factors (removing the dumps of an '
+               'earlier run),'
+    []
+    [diagonal_vcycle_run]
+      type = RunApp
+      input = square_split_ch.i
+      cli_args = 'Outputs/file_base=diagonal_vcycle Preconditioning/fs_factored/verify_apply=true '
+                 'Preconditioning/fs_factored/schur_form=diagonal_mass Executioner/num_steps=1 '
+                 '-fieldsplit_c_stiffness_factor_pc_type hypre '
+                 '-fieldsplit_c_stiffness_factor_pc_hypre_type boomeramg '
+                 '-fieldsplit_c_stiffness_factor_pc_hypre_boomeramg_coarsen_type PMIS '
+                 '-fieldsplit_c_stiffness_factor_pc_hypre_boomeramg_interp_type ext+i '
+                 '-fieldsplit_c_stiffness_factor_pc_hypre_boomeramg_relax_type_all l1scaled-Jacobi '
+                 '-fieldsplit_c_stiffness_factor_pc_hypre_boomeramg_no_CF true '
+                 '-fieldsplit_c_stiffness_factor_pc_hypre_boomeramg_smooth_type ILU '
+                 '-fieldsplit_c_stiffness_factor_pc_hypre_boomeramg_ilu_tri_solve false '
+                 '-fieldsplit_c_hessian_factor_pc_type hypre '
+                 '-fieldsplit_c_hessian_factor_pc_hypre_type boomeramg '
+                 '-fieldsplit_c_hessian_factor_pc_hypre_boomeramg_coarsen_type PMIS '
+                 '-fieldsplit_c_hessian_factor_pc_hypre_boomeramg_interp_type ext+i '
+                 '-fieldsplit_c_hessian_factor_pc_hypre_boomeramg_relax_type_all l1scaled-Jacobi '
+                 '-fieldsplit_c_hessian_factor_pc_hypre_boomeramg_no_CF true '
+                 '-fieldsplit_c_hessian_factor_pc_hypre_boomeramg_smooth_type ILU '
+                 '-fieldsplit_c_hessian_factor_pc_hypre_boomeramg_ilu_tri_solve false '
+                 '-options_left'
+      expect_out = 'There are no unused options'
+      absent_out = 'NOT BALANCED'
+      prereq = 'verify_apply/diagonal_vcycle_clean'
+      recover = false
+      restep = false
+      max_parallel = 1
+      capabilities = 'petsc>=3.20'
+      detail = 'in the diagonal mass form with algebraic multigrid factors (the run),'
+    []
+    [diagonal_vcycle_check]
+      type = RunCommand
+      command = 'python3 -I verify_apply.py diagonal_vcycle --build 1 --mobility 5 --kappa 2 '
+                '--beta 1 --form diagonal_mass --mode approximate'
+      prereq = 'verify_apply/diagonal_vcycle_run'
+      capabilities = 'petsc>=3.20'
+      required_python_packages = 'numpy scipy'
+      detail = 'in the diagonal mass form with algebraic multigrid factors (the reference script),'
+    []
+    [constfpp_clean]
+      type = RunCommand
+      command = 'rm -f constfpp_exact_verify_apply_*.bin'
+      use_shell = True
+      capabilities = 'petsc>=3.20'
+      detail = 'and recover the coefficients of a constant second derivative of the free energy '
+               'exactly (removing the dumps of an earlier run),'
+    []
+    [constfpp_run]
+      type = RunApp
+      input = square_split_ch_constfpp.i
+      cli_args = 'Outputs/file_base=constfpp_exact Preconditioning/fs_factored/verify_apply=true '
+                 'Preconditioning/fs_factored/block_check=every_build Executioner/num_steps=1 '
+                 '-options_left'
+      expect_out = 'There are no unused options'
+      absent_out = 'NOT BALANCED'
+      prereq = 'verify_apply/constfpp_clean'
+      recover = false
+      restep = false
+      max_parallel = 1
+      capabilities = 'petsc>=3.20'
+      detail = 'and recover the coefficients of a constant second derivative of the free energy '
+               'exactly (the run),'
+    []
+    [constfpp_check]
+      type = RunCommand
+      command = 'python3 -I verify_apply.py constfpp_exact --build 1 --mobility 5 --kappa 2 --beta 1 '
+                '--form consistent_mass --mode exact --fit --expect-fpp 10'
+      prereq = 'verify_apply/constfpp_run'
+      capabilities = 'petsc>=3.20'
+      required_python_packages = 'numpy scipy'
+      detail = 'and recover the coefficients of a constant second derivative of the free energy '
+               'exactly (the reference script).'
+    []
+  []
+
+  [rebuild_refill]
+    requirement = 'The factored Schur preconditioner of the split Cahn-Hilliard system shall apply, at '
+                  'every build of the FieldSplit, the operator of the blocks and time step of that build, '
+                  'and apply a retained build unchanged after a time step change'
+    [consistent_reuse_off_clean]
+      type = RunCommand
+      command = 'rm -f consistent_reuse_off_verify_apply_*.bin'
+      use_shell = True
+      capabilities = 'petsc>=3.20'
+      detail = 'in the consistent mass form without preconditioner reuse (removing the dumps of an '
+               'earlier run),'
+    []
+    [consistent_reuse_off_run]
+      type = RunApp
+      input = square_split_ch.i
+      cli_args = 'Outputs/file_base=consistent_reuse_off Preconditioning/fs_factored/verify_apply=true '
+                 'Preconditioning/fs_factored/schur_form=consistent_mass '
+                 'Executioner/reuse_preconditioner=false -options_left'
+      expect_out = 'There are no unused options'
+      absent_out = 'NOT BALANCED'
+      prereq = 'rebuild_refill/consistent_reuse_off_clean'
+      recover = false
+      restep = false
+      max_parallel = 1
+      capabilities = 'petsc>=3.20'
+      detail = 'in the consistent mass form without preconditioner reuse (the run),'
+    []
+    [consistent_reuse_off_check]
+      type = RunCommand
+      command = 'python3 -I verify_apply.py consistent_reuse_off --all-builds --mode exact '
+                '--form consistent_mass --mobility 5 --kappa 2 --beta 1 --require-branches refill,rebuild'
+      prereq = 'rebuild_refill/consistent_reuse_off_run'
+      capabilities = 'petsc>=3.20'
+      required_python_packages = 'numpy scipy'
+      detail = 'in the consistent mass form without preconditioner reuse (the reference script),'
+    []
+    [consistent_reuse_off_four_ranks_clean]
+      type = RunCommand
+      command = 'rm -f consistent_reuse_off_four_ranks_verify_apply_*.bin'
+      use_shell = True
+      capabilities = 'petsc>=3.20'
+      detail = 'in the consistent mass form without preconditioner reuse on four processes with MUMPS '
+               'factors (removing the dumps of an earlier run),'
+    []
+    [consistent_reuse_off_four_ranks_run]
+      type = RunApp
+      input = square_split_ch.i
+      cli_args = 'Outputs/file_base=consistent_reuse_off_four_ranks '
+                 'Preconditioning/fs_factored/verify_apply=true '
+                 'Preconditioning/fs_factored/schur_form=consistent_mass '
+                 'Executioner/reuse_preconditioner=false '
+                 '-fieldsplit_c_stiffness_factor_pc_factor_mat_solver_type mumps '
+                 '-fieldsplit_c_hessian_factor_pc_factor_mat_solver_type mumps -options_left'
+      expect_out = 'There are no unused options'
+      absent_out = 'NOT BALANCED'
+      prereq = 'rebuild_refill/consistent_reuse_off_four_ranks_clean'
+      recover = false
+      restep = false
+      min_parallel = 4
+      max_parallel = 4
+      capabilities = 'petsc>=3.20 & mumps'
+      detail = 'in the consistent mass form without preconditioner reuse on four processes with MUMPS '
+               'factors (the run),'
+    []
+    [consistent_reuse_off_four_ranks_check]
+      type = RunCommand
+      command = 'python3 -I verify_apply.py consistent_reuse_off_four_ranks --all-builds --mode exact '
+                '--form consistent_mass --mobility 5 --kappa 2 --beta 1 --require-branches refill,rebuild'
+      prereq = 'rebuild_refill/consistent_reuse_off_four_ranks_run'
+      capabilities = 'petsc>=3.20'
+      required_python_packages = 'numpy scipy'
+      detail = 'in the consistent mass form without preconditioner reuse on four processes with MUMPS '
+               'factors (the reference script),'
+    []
+    [consistent_forced_refill_clean]
+      type = RunCommand
+      command = 'rm -f consistent_forced_refill_verify_apply_*.bin'
+      use_shell = True
+      capabilities = 'petsc>=3.20'
+      detail = 'in the consistent mass form with the preconditioner set up again after every solve of '
+               'more than one linear iteration (removing the dumps of an earlier run),'
+    []
+    [consistent_forced_refill_run]
+      type = RunApp
+      input = square_split_ch.i
+      cli_args = 'Outputs/file_base=consistent_forced_refill '
+                 'Preconditioning/fs_factored/verify_apply=true '
+                 'Preconditioning/fs_factored/schur_form=consistent_mass '
+                 'Executioner/reuse_preconditioner=true '
+                 'Executioner/reuse_preconditioner_max_linear_its=1 -options_left'
+      expect_out = 'There are no unused options'
+      absent_out = 'NOT BALANCED'
+      prereq = 'rebuild_refill/consistent_forced_refill_clean'
+      recover = false
+      restep = false
+      max_parallel = 1
+      capabilities = 'petsc>=3.20'
+      detail = 'in the consistent mass form with the preconditioner set up again after every solve of '
+               'more than one linear iteration (the run),'
+    []
+    [consistent_forced_refill_check]
+      type = RunCommand
+      command = 'python3 -I verify_apply.py consistent_forced_refill --all-builds --mode exact '
+                '--form consistent_mass --mobility 5 --kappa 2 --beta 1 --require-branches refill'
+      prereq = 'rebuild_refill/consistent_forced_refill_run'
+      capabilities = 'petsc>=3.20'
+      required_python_packages = 'numpy scipy'
+      detail = 'in the consistent mass form with the preconditioner set up again after every solve of '
+               'more than one linear iteration (the reference script),'
+    []
+    [consistent_retained_clean]
+      type = RunCommand
+      command = 'rm -f consistent_retained_verify_apply_*.bin'
+      use_shell = True
+      capabilities = 'petsc>=3.20'
+      detail = 'in the consistent mass form with the first build retained across the time step change '
+               '(removing the dumps of an earlier run),'
+    []
+    [consistent_retained_run]
+      type = RunApp
+      input = square_split_ch.i
+      cli_args = 'Outputs/file_base=consistent_retained Preconditioning/fs_factored/verify_apply=true '
+                 'Preconditioning/fs_factored/schur_form=consistent_mass '
+                 'Executioner/reuse_preconditioner=true '
+                 'Executioner/reuse_preconditioner_max_linear_its=1000 -options_left'
+      expect_out = 'There are no unused options'
+      absent_out = 'NOT BALANCED'
+      prereq = 'rebuild_refill/consistent_retained_clean'
+      recover = false
+      restep = false
+      max_parallel = 1
+      capabilities = 'petsc>=3.20'
+      detail = 'in the consistent mass form with the first build retained across the time step change '
+               '(the run),'
+    []
+    [consistent_retained_check]
+      type = RunCommand
+      command = 'python3 -I verify_apply.py consistent_retained --all-builds --mode exact '
+                '--form consistent_mass --mobility 5 --kappa 2 --beta 1 --require-reuse --require-builds 1'
+      prereq = 'rebuild_refill/consistent_retained_run'
+      capabilities = 'petsc>=3.20'
+      required_python_packages = 'numpy scipy'
+      detail = 'in the consistent mass form with the first build retained across the time step change '
+               '(the reference script),'
+    []
+    [diagonal_reuse_off_clean]
+      type = RunCommand
+      command = 'rm -f diagonal_reuse_off_verify_apply_*.bin'
+      use_shell = True
+      capabilities = 'petsc>=3.20'
+      detail = 'in the diagonal mass form without preconditioner reuse (removing the dumps of an '
+               'earlier run),'
+    []
+    [diagonal_reuse_off_run]
+      type = RunApp
+      input = square_split_ch.i
+      cli_args = 'Outputs/file_base=diagonal_reuse_off Preconditioning/fs_factored/verify_apply=true '
+                 'Preconditioning/fs_factored/schur_form=diagonal_mass '
+                 'Executioner/reuse_preconditioner=false -options_left'
+      expect_out = 'There are no unused options'
+      absent_out = 'NOT BALANCED'
+      prereq = 'rebuild_refill/diagonal_reuse_off_clean'
+      recover = false
+      restep = false
+      max_parallel = 1
+      capabilities = 'petsc>=3.20'
+      detail = 'in the diagonal mass form without preconditioner reuse (the run),'
+    []
+    [diagonal_reuse_off_check]
+      type = RunCommand
+      command = 'python3 -I verify_apply.py diagonal_reuse_off --all-builds --mode exact '
+                '--form diagonal_mass --mobility 5 --kappa 2 --beta 1 --require-branches refill,rebuild'
+      prereq = 'rebuild_refill/diagonal_reuse_off_run'
+      capabilities = 'petsc>=3.20'
+      required_python_packages = 'numpy scipy'
+      detail = 'in the diagonal mass form without preconditioner reuse (the reference script),'
+    []
+    [diagonal_reuse_off_four_ranks_clean]
+      type = RunCommand
+      command = 'rm -f diagonal_reuse_off_four_ranks_verify_apply_*.bin'
+      use_shell = True
+      capabilities = 'petsc>=3.20'
+      detail = 'in the diagonal mass form without preconditioner reuse on four processes with MUMPS '
+               'factors (removing the dumps of an earlier run),'
+    []
+    [diagonal_reuse_off_four_ranks_run]
+      type = RunApp
+      input = square_split_ch.i
+      cli_args = 'Outputs/file_base=diagonal_reuse_off_four_ranks '
+                 'Preconditioning/fs_factored/verify_apply=true '
+                 'Preconditioning/fs_factored/schur_form=diagonal_mass '
+                 'Executioner/reuse_preconditioner=false '
+                 '-fieldsplit_c_stiffness_factor_pc_factor_mat_solver_type mumps '
+                 '-fieldsplit_c_hessian_factor_pc_factor_mat_solver_type mumps -options_left'
+      expect_out = 'There are no unused options'
+      absent_out = 'NOT BALANCED'
+      prereq = 'rebuild_refill/diagonal_reuse_off_four_ranks_clean'
+      recover = false
+      restep = false
+      min_parallel = 4
+      max_parallel = 4
+      capabilities = 'petsc>=3.20 & mumps'
+      detail = 'in the diagonal mass form without preconditioner reuse on four processes with MUMPS '
+               'factors (the run),'
+    []
+    [diagonal_reuse_off_four_ranks_check]
+      type = RunCommand
+      command = 'python3 -I verify_apply.py diagonal_reuse_off_four_ranks --all-builds --mode exact '
+                '--form diagonal_mass --mobility 5 --kappa 2 --beta 1 --require-branches refill,rebuild'
+      prereq = 'rebuild_refill/diagonal_reuse_off_four_ranks_run'
+      capabilities = 'petsc>=3.20'
+      required_python_packages = 'numpy scipy'
+      detail = 'in the diagonal mass form without preconditioner reuse on four processes with MUMPS '
+               'factors (the reference script),'
+    []
+    [diagonal_forced_refill_clean]
+      type = RunCommand
+      command = 'rm -f diagonal_forced_refill_verify_apply_*.bin'
+      use_shell = True
+      capabilities = 'petsc>=3.20'
+      detail = 'in the diagonal mass form with the preconditioner set up again after every solve of '
+               'more than one linear iteration (removing the dumps of an earlier run),'
+    []
+    [diagonal_forced_refill_run]
+      type = RunApp
+      input = square_split_ch.i
+      cli_args = 'Outputs/file_base=diagonal_forced_refill '
+                 'Preconditioning/fs_factored/verify_apply=true '
+                 'Preconditioning/fs_factored/schur_form=diagonal_mass '
+                 'Executioner/reuse_preconditioner=true '
+                 'Executioner/reuse_preconditioner_max_linear_its=1 -options_left'
+      expect_out = 'There are no unused options'
+      absent_out = 'NOT BALANCED'
+      prereq = 'rebuild_refill/diagonal_forced_refill_clean'
+      recover = false
+      restep = false
+      max_parallel = 1
+      capabilities = 'petsc>=3.20'
+      detail = 'in the diagonal mass form with the preconditioner set up again after every solve of '
+               'more than one linear iteration (the run),'
+    []
+    [diagonal_forced_refill_check]
+      type = RunCommand
+      command = 'python3 -I verify_apply.py diagonal_forced_refill --all-builds --mode exact '
+                '--form diagonal_mass --mobility 5 --kappa 2 --beta 1 --require-branches refill'
+      prereq = 'rebuild_refill/diagonal_forced_refill_run'
+      capabilities = 'petsc>=3.20'
+      required_python_packages = 'numpy scipy'
+      detail = 'in the diagonal mass form with the preconditioner set up again after every solve of '
+               'more than one linear iteration (the reference script),'
+    []
+    [diagonal_retained_clean]
+      type = RunCommand
+      command = 'rm -f diagonal_retained_verify_apply_*.bin'
+      use_shell = True
+      capabilities = 'petsc>=3.20'
+      detail = 'in the diagonal mass form with the first build retained across the time step change '
+               '(removing the dumps of an earlier run),'
+    []
+    [diagonal_retained_run]
+      type = RunApp
+      input = square_split_ch.i
+      cli_args = 'Outputs/file_base=diagonal_retained Preconditioning/fs_factored/verify_apply=true '
+                 'Preconditioning/fs_factored/schur_form=diagonal_mass '
+                 'Executioner/reuse_preconditioner=true '
+                 'Executioner/reuse_preconditioner_max_linear_its=1000 -options_left'
+      expect_out = 'There are no unused options'
+      absent_out = 'NOT BALANCED'
+      prereq = 'rebuild_refill/diagonal_retained_clean'
+      recover = false
+      restep = false
+      max_parallel = 1
+      capabilities = 'petsc>=3.20'
+      detail = 'in the diagonal mass form with the first build retained across the time step change '
+               '(the run),'
+    []
+    [diagonal_retained_check]
+      type = RunCommand
+      command = 'python3 -I verify_apply.py diagonal_retained --all-builds --mode exact '
+                '--form diagonal_mass --mobility 5 --kappa 2 --beta 1 --require-reuse --require-builds 1'
+      prereq = 'rebuild_refill/diagonal_retained_run'
+      capabilities = 'petsc>=3.20'
+      required_python_packages = 'numpy scipy'
+      detail = 'in the diagonal mass form with the first build retained across the time step change '
+               '(the reference script).'
+    []
+  []
+[]
